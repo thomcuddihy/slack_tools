@@ -33,6 +33,12 @@ examples:
     sendslack -c '@admin' -p 'Hi there admin. Nothing to report today'
 "
 
+## Check if null arguments
+if [ $# -eq 0 ]; then
+    echo "$HELP"
+    exit
+fi
+
 ## Load vars from environment:
 TOKEN=$SLACK_TOKEN
 CHANNEL=$SLACK_CHANNEL
@@ -85,8 +91,9 @@ fi
 ## Post message
 if [[ -n ${POST} ]]; then
     ## Build existing file upload
-    POST_MSG_CMD="-F token=${TOKEN} -F channel=${CHANNEL} -F text=${POST}"
+    POST_MSG_CMD="-F token=${TOKEN} -F channel=\"${CHANNEL}\" -F text=\"${POST}\""
 
     ## Upload named file
     eval curl ${POST_MSG_CMD} https://slack.com/api/chat.postMessage
 fi
+

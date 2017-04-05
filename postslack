@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+
+# simple script to interact with slack using an API key
+# advanced post sending with formatting, attachments e.g.
+#
+# author: Little Tinker/Thom Cuddihy (https://github.com/thomcuddihy)
+# MIT License 2017
+
+HELP="
+arguments:
+    T: API token
+    C: channel
+    t: text to post
+    p: parse (none|full)
+    l: link names (true|false)
+    r: rich message using attachments (see https://api.slack.com/docs/message-attachments)
+    c: colour of rich message (hex or: good|warning|danger)
+    P: pretext message (appears above rich message)
+    H: rich text header (title)
+    L: rich text header url (title url)
+    a: author (rich message only)
+    A: author icon url
+    w: author website url
+    u: username to post as. Requires '-U' to be false
+    U: post as the token user instead of as bot (true|false)
+    f: unfurl links (true|false)
+    F: unfurl media (true|false)
+    i: icon url (http://lorempixel.com/48/48 e.g.)
+    I: icon emoji (:emoji: e.g. overrides icon url)
+    h: help
+
+notes:
+    api token and channel can be omitted and set in environment instead (SLACK_TOKEN and SLACK_CHANNEL respectively)
+    icon url or emoji require '-U' to be false
+    action buttons not currently supported
+    threaded replies not currently supported
+    no data verification is currently done. if an option has a list of acceptable values, then please, use them
+
+examples:
+    postslack -C \"#general\" -rt \"This is a rich error message\" -c danger
+    postslack -C \"#general\" -rt \"This is a rich ok message!\" -c good
+    postslack -C \"#general\" -t \"This is a plain message\"
+    postslack -C \"#general\" -t \"This is a message from Bob\" -u Bob -i \"https://cloud.hometreelab.com/index.php/avatar/tinker/48?v=1\"
+    postslack -C \"#general\" -rt \"This is a rich message with custom colour, title and author\" -c \"#ffb6c1\" -H \"My Title\" -L \"http://dev.hometreelab.com\" -a \"little tinker\" -w \"http://www.hometreelab.com\" -A \"https://cloud.hometreelab.com/index.php/avatar/tinker/48?v=1\"
+"
+
+## Check if null arguments
+if [ $# -eq 0 ]; then
+    echo "$HELP"
+    exit
+fi
+
+## Load vars from environment:
+TOKEN=$SLACK_TOKEN
+CHANNEL=$SLACK_CHANNEL
+
+## Setup vars from arguments
+while getopts 'T:C:t:p:l:rc:P:H:L:a:A:w:u:U:f:F:i:Ih' opt; do
+    case $opt in
+        T)  TOKEN="$OPTARG"         ;;
+        C)  CHANNEL="$OPTARG"       ;;
+        t)  TEXT="$OPTARG"          ;;
+        p)  PARSE="$OPTARG"         ;;
+        l)  LINK_NAMES="$OPTARG"    ;;
+        r)  RICH="TRUE"             ;;
+        c)  COLOUR="$OPTARG"        ;;
+        P)  PRETEXT="$OPTARG"       ;;
+        H)  TITLE="$OPTARG"         ;;
+        L)  TITLE_URL="$OPTARG"     ;;
+        a)  AUTHOR="$OPTARG"        ;;
+        A)  AUTHOR_ICON="$OPTARG"   ;;
+        w)  AUTHOR_URL="$OPTARG"    ;;
+        u)  USERNAME="$OPTARG"      ;;
+        U)  AS_USER="$OPTARG"       ;;
+        f)  UNFURL_LINKS="$OPTARG"  ;;
+        F)  UNFURL_MEDIA="$OPTARG"  ;;
+        i)  ICON_URL="$OPTARG"      ;;
+        I)  ICON_EMOJI="$OPTARG"    ;;
+        h)  echo "$HELP"
+            exit                    ;;
+        *)  echo "$HELP" >&2
+            exit 1                  ;;
+    esac
+done
+
+## Rich attachment post
+if [[ -n ${RICH} ]]; then
+    ## Build rich post command
+    RICH_POST_CMD="-F token=${TOKEN} -F channel=\"${CHANNEL}\""
+    
+    ## Standard parameters
+    if [[ -n ${PARSE} ]]; then RICH_POST_CMD=" -F parse=\"${PARSE}\" $RICH_POST_CMD"; fi
+    if [[ -n ${LINK_NAMES} ]]; then RICH_POST_CMD=" -F link_names=\"${LINK_NAMES}\" $RICH_POST_CMD"; fi
+    if [[ -n ${USERNAME} ]]; then RICH_POST_CMD=" -F username=\"${USERNAME}\" $RICH_POST_CMD"; fi
+    if [[ -n ${AS_USER} ]]; then RICH_POST_CMD=" -F as_user=\"${AS_USER}\" $RICH_POST_CMD"; fi
+    if [[ -n ${UNFURL_LINKS} ]]; then RICH_POST_CMD=" -F unfurl_links=\"${UNFURL_LINKS}\" $RICH_POST_CMD"; fi
+    if [[ -n ${UNFURL_MEDIA} ]]; then RICH_POST_CMD=" -F unfurl_media=\"${UNFURL_MEDIA}\" $RICH_POST_CMD"; fi
+    if [[ -n ${ICON_URL} ]]; then RICH_POST_CMD=" -F icon_url=\"${ICON_URL}\" $RICH_POST_CMD"; fi
+    if [[ -n ${ICON_EMOJI} ]]; then RICH_POST_CMD=" -F icon_emoji=\"${ICON_EMOJI}\" $RICH_POST_CMD"; fi
+
+    ## Attachment parameters
+    ATTACHMENT_CODE="[{"
+    if [[ -n ${TEXT} ]]; then ATTACHMENT_CODE="$ATTACHMENT_CODE\\\"text\\\":\\\"${TEXT}\\\","; fi
+    if [[ -n ${COLOUR} ]]; then ATTACHMENT_CODE="$ATTACHMENT_CODE\\\"color\\\":\\\"${COLOUR}\\\","; fi
+    if [[ -n ${PRETEXT} ]]; then ATTACHMENT_CODE="$ATTACHMENT_CODE\\\"pretext\\\":\\\"${PRETEXT}\\\","; fi
+    if [[ -n ${TITLE} ]]; then ATTACHMENT_CODE="$ATTACHMENT_CODE\\\"title\\\":\\\"${TITLE}\\\","; fi
+    if [[ -n ${TITLE_URL} ]]; then ATTACHMENT_CODE="$ATTACHMENT_CODE\\\"title_link\\\":\\\"${TITLE_URL}\\\","; fi
+    if [[ -n ${AUTHOR} ]]; then ATTACHMENT_CODE="$ATTACHMENT_CODE\\\"author_name\\\":\\\"${AUTHOR}\\\","; fi
+    if [[ -n ${AUTHOR_ICON} ]]; then ATTACHMENT_CODE="$ATTACHMENT_CODE\\\"author_icon\\\":\\\"${AUTHOR_ICON}\\\","; fi
+    if [[ -n ${AUTHOR_URL} ]]; then ATTACHMENT_CODE="$ATTACHMENT_CODE\\\"author_link\\\":\\\"${AUTHOR_URL}\\\","; fi
+
+    if [[ -n ${TEXT} ]]; then ATTACHMENT_CODE="$ATTACHMENT_CODE\\\"fallback\\\":\\\"${TEXT}\\\"";
+    else ATTACHMENT_CODE="$ATTACHMENT_CODE\\\"fallback\\\":\\\" \\\""; fi
+
+    ATTACHMENT_CODE="$ATTACHMENT_CODE}]"
+    RICH_POST_CMD=" -F attachments=\"${ATTACHMENT_CODE}\" $RICH_POST_CMD"
+
+    echo $ATTACHMENT_CODE
+    echo $RICH_POST_CMD
+
+    ## Send rich attachment post
+    eval curl ${RICH_POST_CMD} https://slack.com/api/chat.postMessage
+
+## Normal post
+else
+    ## Build normal post command
+    POST_MSG_CMD="-F token=${TOKEN} -F channel=\"${CHANNEL}\" -F text=\"${TEXT}\""
+
+    ## Standard parameters
+    if [[ -n ${PARSE} ]]; then POST_MSG_CMD=" -F parse=\"${PARSE}\" $POST_MSG_CMD"; fi
+    if [[ -n ${LINK_NAMES} ]]; then POST_MSG_CMD=" -F link_names=\"${LINK_NAMES}\" $POST_MSG_CMD"; fi
+    if [[ -n ${USERNAME} ]]; then POST_MSG_CMD=" -F username=\"${USERNAME}\" $POST_MSG_CMD"; fi
+    if [[ -n ${AS_USER} ]]; then POST_MSG_CMD=" -F as_user=\"${AS_USER}\" $POST_MSG_CMD"; fi
+    if [[ -n ${UNFURL_LINKS} ]]; then POST_MSG_CMD=" -F unfurl_links=\"${UNFURL_LINKS}\" $POST_MSG_CMD"; fi
+    if [[ -n ${UNFURL_MEDIA} ]]; then POST_MSG_CMD=" -F unfurl_media=\"${UNFURL_MEDIA}\" $POST_MSG_CMD"; fi
+    if [[ -n ${ICON_URL} ]]; then POST_MSG_CMD=" -F icon_url=\"${ICON_URL}\" $POST_MSG_CMD"; fi
+    if [[ -n ${ICON_EMOJI} ]]; then RICPOST_MSG_CMDH_POST_CMD=" -F icon_emoji=\"${ICON_EMOJI}\" $POST_MSG_CMD"; fi
+
+    ## Send rich attachment post
+    eval curl ${POST_MSG_CMD} https://slack.com/api/chat.postMessage
+
+fi
+

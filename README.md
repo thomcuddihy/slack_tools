@@ -6,6 +6,8 @@ A collection of various slack tools and scripts. All licensed under MIT.
 ## Tools ##
 ### sendslack ###
 * A bash script to send files and post messages to slack. Useful for log/server/resource monitoring
+### postslack ###
+* A bash script to post simple or rich messages to slack. Useful for log/server/resource monitoring
 
 ## In development ##
 ### slybot ###
