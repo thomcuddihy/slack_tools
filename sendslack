@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+
+# simple script to interact with slack using an API key
+# can send files (logs), make new files and post simple message
+#
+# author: Little Tinker/Thom Cuddihy (https://github.com/thomcuddihy)
+# MIT License 2017
+
+HELP="
+arguments:
+    a: API token
+    c: channel
+    f: file path (absolute or relative)
+    e: echo string to new file upload
+    t: title (file upload only)
+    i: initial comment (file upload only)
+    n: file name (file upload only)
+    m: file mime type (file upload only)
+    p: post message
+    h: help
+
+notes:
+    file mine type override will only work for acceptable value (see https://api.slack.com/types/file#file_types)
+    channels can be either public or private (as long as token user is in it; #channel e.g.), or direct to user (@user e.g)
+    multiple channels can also be specified as comma separated (file upload only, not posting!)
+    text file (logs) will only show as snippets in-app if <1mb (will just be normal uploads otherwise)
+    posting is currently basic text only. fancy attachments and options to come (probably as separate script)
+    api token and channel can be omitted and set in environment instead (SLACK_TOKEN and SLACK_CHANNEL respectively)
+
+examples:
+    sendslack -f example.log -c '#logging' -t 'Example Log' -i 'Log for 20170401'
+    sendslack -e 'This is the start of a new file' -n 'example_file.txt' -t 'Echoed file upload' -c '#logging,@user'
+    sendslack -c '@admin' -p 'Hi there admin. Nothing to report today'
+"
+
+## Load vars from environment:
+TOKEN=$SLACK_TOKEN
+CHANNEL=$SLACK_CHANNEL
+
+## Setup vars from arguments
+while getopts 'a:c:f:e:t:i:n:m:p:h' opt; do
+    case $opt in
+        a)  TOKEN="$OPTARG"     ;;
+        c)  CHANNEL="$OPTARG"   ;;
+        f)  FILE="$OPTARG"      ;;
+        e)  CONTENT="$OPTARG"   ;;
+        t)  TITLE="$OPTARG"     ;;
+        i)  COMMENT="$OPTARG"   ;;
+        n)  NAME="$OPTARG"      ;;
+        m)  TYPE="$OPTARG"      ;;
+        p)  POST="$OPTARG"      ;;
+        h)  echo "$HELP"
+            exit                ;;
+        *)  echo "$HELP" >&2
+            exit 1              ;;
+    esac
+done
+
+## Existing file upload
+if [[ -n ${FILE} ]]; then
+    ## Build existing file upload
+    EXISTING_UPLOAD_CMD="-F token=${TOKEN} -F channels=\"${CHANNEL}\" -F file=\"@${FILE}\""
+    if [[ -n ${TITLE} ]]; then EXISTING_UPLOAD_CMD=" -F title=\"${TITLE}\" $EXISTING_UPLOAD_CMD"; fi
+    if [[ -n ${COMMENT} ]]; then EXISTING_UPLOAD_CMD=" -F initial_comment=\"${COMMENT}\" $EXISTING_UPLOAD_CMD"; fi
+    if [[ -n ${NAME} ]]; then EXISTING_UPLOAD_CMD=" -F filename=\"${NAME}\" $EXISTING_UPLOAD_CMD"; fi
+    if [[ -n ${TYPE} ]]; then EXISTING_UPLOAD_CMD=" -F filetype=\"${TYPE}\" $EXISTING_UPLOAD_CMD"; fi
+
+    ## Upload named file
+    eval curl ${EXISTING_UPLOAD_CMD} https://slack.com/api/files.upload
+fi
+
+## New file upload
+if [[ -n ${CONTENT} ]]; then
+    ## Build new file upload
+    NEW_UPLOAD_CMD="-F token=${TOKEN} -F channels=\"${CHANNEL}\" -F content=\"${CONTENT}\""
+    if [[ -n ${TITLE} ]]; then NEW_UPLOAD_CMD=" -F title=\"${TITLE}\" $NEW_UPLOAD_CMD"; fi
+    if [[ -n ${COMMENT} ]]; then NEW_UPLOAD_CMD=" -F initial_comment=\"${COMMENT}\" $NEW_UPLOAD_CMD"; fi
+    if [[ -n ${NAME} ]]; then NEW_UPLOAD_CMD=" -F filename=\"${NAME}\" $NEW_UPLOAD_CMD"; fi
+    if [[ -n ${TYPE} ]]; then NEW_UPLOAD_CMD=" -F filetype=\"${TYPE}\" $NEW_UPLOAD_CMD"; fi
+
+    ## Upload new file from content
+    eval curl ${NEW_UPLOAD_CMD} https://slack.com/api/files.upload
+fi
+
+## Post message
+if [[ -n ${POST} ]]; then
+    ## Build existing file upload
+    POST_MSG_CMD="-F token=${TOKEN} -F channel=${CHANNEL} -F text=${POST}"
+
+    ## Upload named file
+    eval curl ${POST_MSG_CMD} https://slack.com/api/chat.postMessage
+fi
