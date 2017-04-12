@@ -35,10 +35,12 @@ notes:
     action buttons not currently supported
     threaded replies not currently supported
     no data verification is currently done. if an option has a list of acceptable values, then please, use them
+    multiline posts (using '\n') are ONLY supported for rich text posts. Blame slack. 
 
 examples:
     postslack -C \"#general\" -rt \"This is a rich error message\" -c danger
-    postslack -C \"#general\" -rt \"This is a rich ok message!\" -c good
+    postslack -C \"#general\" -rt \"This is a rich ok message\" -c good
+    postslack -C \"#general\" -rt \"This is a rich ok message\nWith two lines\"
     postslack -C \"#general\" -t \"This is a plain message\"
     postslack -C \"#general\" -t \"This is a message from Bob\" -u Bob -i \"https://cloud.hometreelab.com/index.php/avatar/tinker/48?v=1\"
     postslack -C \"#general\" -rt \"This is a rich message with custom colour, title and author\" -c \"#ffb6c1\" -H \"My Title\" -L \"http://dev.hometreelab.com\" -a \"little tinker\" -w \"http://www.hometreelab.com\" -A \"https://cloud.hometreelab.com/index.php/avatar/tinker/48?v=1\"
@@ -53,6 +55,9 @@ fi
 ## Load vars from environment:
 TOKEN=$SLACK_TOKEN
 CHANNEL=$SLACK_CHANNEL
+
+## Script specific defaults (different than Slack defautls)
+AS_USER="true"
 
 ## Setup vars from arguments
 while getopts 'T:C:t:p:l:rc:P:H:L:a:A:w:u:U:f:F:i:Ih' opt; do
@@ -86,7 +91,8 @@ done
 ## Rich attachment post
 if [[ -n ${RICH} ]]; then
     ## Build rich post command
-    RICH_POST_CMD="-F token=${TOKEN} -F channel=\"${CHANNEL}\""
+    # add "--trace-ascii curl.trace" for trace functionality e.g.
+    RICH_POST_CMD="-F token=${TOKEN} --form-string channel=${CHANNEL} -F pretty=1"
     
     ## Standard parameters
     if [[ -n ${PARSE} ]]; then RICH_POST_CMD=" -F parse=\"${PARSE}\" $RICH_POST_CMD"; fi
@@ -115,16 +121,14 @@ if [[ -n ${RICH} ]]; then
     ATTACHMENT_CODE="$ATTACHMENT_CODE}]"
     RICH_POST_CMD=" -F attachments=\"${ATTACHMENT_CODE}\" $RICH_POST_CMD"
 
-    echo $ATTACHMENT_CODE
-    echo $RICH_POST_CMD
-
     ## Send rich attachment post
     eval curl ${RICH_POST_CMD} https://slack.com/api/chat.postMessage
 
 ## Normal post
 else
     ## Build normal post command
-    POST_MSG_CMD="-F token=${TOKEN} -F channel=\"${CHANNEL}\" -F text=\"${TEXT}\""
+    # add "--trace-ascii curl.trace" for trace functionality e.g.
+    POST_MSG_CMD="-F token=${TOKEN} --form-string channel=${CHANNEL} -F text=\"${TEXT}\" -F pretty=1"
 
     ## Standard parameters
     if [[ -n ${PARSE} ]]; then POST_MSG_CMD=" -F parse=\"${PARSE}\" $POST_MSG_CMD"; fi
@@ -140,4 +144,3 @@ else
     eval curl ${POST_MSG_CMD} https://slack.com/api/chat.postMessage
 
 fi
-

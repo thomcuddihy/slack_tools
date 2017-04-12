@@ -22,7 +22,7 @@ arguments:
 notes:
     file mine type override will only work for acceptable value (see https://api.slack.com/types/file#file_types)
     channels can be either public or private (as long as token user is in it; #channel e.g.), or direct to user (@user e.g)
-    multiple channels can also be specified as comma separated (file upload only, not posting!)
+    multiple channels can also be specified as comma separated (file upload only, not posting)
     text file (logs) will only show as snippets in-app if <1mb (will just be normal uploads otherwise)
     posting is currently basic text only. fancy attachments and options to come (probably as separate script)
     api token and channel can be omitted and set in environment instead (SLACK_TOKEN and SLACK_CHANNEL respectively)
@@ -42,6 +42,9 @@ fi
 ## Load vars from environment:
 TOKEN=$SLACK_TOKEN
 CHANNEL=$SLACK_CHANNEL
+
+## Script specific defaults (different than Slack defautls)
+AS_USER="true"
 
 ## Setup vars from arguments
 while getopts 'a:c:f:e:t:i:n:m:p:h' opt; do
@@ -65,7 +68,8 @@ done
 ## Existing file upload
 if [[ -n ${FILE} ]]; then
     ## Build existing file upload
-    EXISTING_UPLOAD_CMD="-F token=${TOKEN} -F channels=\"${CHANNEL}\" -F file=\"@${FILE}\""
+    # add "--trace-ascii curl.trace" for trace functionality e.g.
+    EXISTING_UPLOAD_CMD="-F token=${TOKEN} --form-string channels=${CHANNEL} -F file=@\"${FILE}\" -F pretty=1"
     if [[ -n ${TITLE} ]]; then EXISTING_UPLOAD_CMD=" -F title=\"${TITLE}\" $EXISTING_UPLOAD_CMD"; fi
     if [[ -n ${COMMENT} ]]; then EXISTING_UPLOAD_CMD=" -F initial_comment=\"${COMMENT}\" $EXISTING_UPLOAD_CMD"; fi
     if [[ -n ${NAME} ]]; then EXISTING_UPLOAD_CMD=" -F filename=\"${NAME}\" $EXISTING_UPLOAD_CMD"; fi
@@ -78,7 +82,8 @@ fi
 ## New file upload
 if [[ -n ${CONTENT} ]]; then
     ## Build new file upload
-    NEW_UPLOAD_CMD="-F token=${TOKEN} -F channels=\"${CHANNEL}\" -F content=\"${CONTENT}\""
+    # add "--trace-ascii curl.trace" for trace functionality e.g.
+    NEW_UPLOAD_CMD="-F token=${TOKEN} --form-string channels=${CHANNEL} -F content=\"${CONTENT}\" -F pretty=1"
     if [[ -n ${TITLE} ]]; then NEW_UPLOAD_CMD=" -F title=\"${TITLE}\" $NEW_UPLOAD_CMD"; fi
     if [[ -n ${COMMENT} ]]; then NEW_UPLOAD_CMD=" -F initial_comment=\"${COMMENT}\" $NEW_UPLOAD_CMD"; fi
     if [[ -n ${NAME} ]]; then NEW_UPLOAD_CMD=" -F filename=\"${NAME}\" $NEW_UPLOAD_CMD"; fi
@@ -91,9 +96,10 @@ fi
 ## Post message
 if [[ -n ${POST} ]]; then
     ## Build existing file upload
-    POST_MSG_CMD="-F token=${TOKEN} -F channel=\"${CHANNEL}\" -F text=\"${POST}\""
+    # add "--trace-ascii curl.trace" for trace functionality e.g.
+    POST_MSG_CMD="-F token=${TOKEN} --form-string channel=${CHANNEL} -F text=\"${POST}\" -F pretty=1"
+    if [[ -n ${AS_USER} ]]; then POST_MSG_CMD=" -F as_user=\"${AS_USER}\" $POST_MSG_CMD"; fi
 
-    ## Upload named file
+    ## Post plain message
     eval curl ${POST_MSG_CMD} https://slack.com/api/chat.postMessage
 fi
-
