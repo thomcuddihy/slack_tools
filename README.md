@@ -13,3 +13,5 @@ A collection of various slack tools and scripts. All licensed under MIT.
 ### slybot ###
 * A contractual interface extendable slack bot written in python
     * plugins: website monitoring (via UTR), random password generator, github monitoring, ansible kickoffs, conversational replies
+
+Test commit from git2go
