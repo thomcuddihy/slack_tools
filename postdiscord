@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+
+# simple script to interact with discord using a webhook
+# simple and rich post sending to a
+#
+# author: Little Tinker/Thom Cuddihy (https://github.com/thomcuddihy)
+# MIT License 2017
+
+HELP="
+arguments:
+    T: Webhook token
+    G: Guild code
+    t: text to post (appears above rich message if used)
+    r: rich message
+    c: colour of rich message (as ascii integer or: good|warning|danger)
+    H: rich text header (title)
+    l: rich text header url (title url)
+    a: avatar icon url
+    u: username to post as
+    h: help
+notes:
+    TO COME
+examples:
+    ./postdiscord -t \"boop\" -r \"beep\" -c \"good\" -H \"test script\" -u \"Feldb0t\"
+    ./postdiscord -t \"boop\" -u \"AppleBot\"
+"
+
+## Check if null arguments
+if [ $# -eq 0 ]; then
+    echo "$HELP"
+    exit
+fi
+
+#Set vars
+URL_BASE="https://discordapp.com/api/webhooks"
+COLOUR="8421504"
+
+## Load var from environment:
+GUILD=$DISCORD_GUILD
+TOKEN=$DISCORD_TOKEN
+
+## Setup vars from arguments
+while getopts 'T:G:t:r:c:H:l:a:u:h' opt; do
+    case $opt in
+        T)  TOKEN="$OPTARG"         ;;
+        G)  GUILD="$OPTARG"         ;;
+        t)  TEXT="$OPTARG"          ;;
+        r)  RICH="$OPTARG"          ;;
+        c)  COLOUR="$OPTARG"        ;;
+        H)  TITLE="$OPTARG"         ;;
+        l)  TITLE_URL="$OPTARG"     ;;
+        a)  AUTHOR_ICON="$OPTARG"   ;;
+        u)  USERNAME="$OPTARG"      ;;
+        h)  echo "$HELP"
+            exit                    ;;
+        *)  echo "$HELP" >&2
+            exit 1                  ;;
+    esac
+done
+
+## colour strings...
+if [ ${COLOUR} = "good" ]; then COLOUR="65280"; fi
+if [ ${COLOUR} = "warning" ]; then COLOUR="255"; fi
+if [ ${COLOUR} = "danger" ]; then COLOUR="16711680"; fi
+
+## post url
+POST_URL=${URL_BASE}/${GUILD}/${TOKEN}
+
+## Rich attachment post
+if [[ -n ${RICH} ]]; then
+    curl -X POST ${POST_URL} \
+    --header "Content-Type: application/json" -d @- << EOF
+{"content":"${TEXT}",
+"username":"${USERNAME}",
+"avatar_url":"${AUTHOR_ICON}",
+"embeds":[{
+"title": "${TITLE}",
+"description": "${RICH}",
+"color": "${COLOUR}",
+"url": "${TITLE_URL}"
+}]}
+EOF
+
+## Normal post
+else
+    curl -X POST ${POST_URL} \
+    --header "Content-Type: application/json" -d @- << EOF
+{"content":"${TEXT}",
+"username":"${USERNAME}",
+"avatar_url":"${AUTHOR_ICON}"
+}
+EOF
+
+fi
