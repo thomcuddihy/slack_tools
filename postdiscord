@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 # simple script to interact with discord using a webhook
-# simple and rich post sending to a
+# simple and rich post sending to a single discord channel
+# (channel set in 'webhooks' in server settings)
 #
 # author: Little Tinker/Thom Cuddihy (https://github.com/thomcuddihy)
 # MIT License 2017
@@ -12,17 +13,30 @@ arguments:
     G: Guild code
     t: text to post (appears above rich message if used)
     r: rich message
-    c: colour of rich message (as ascii integer or: good|warning|danger)
-    H: rich text header (title)
-    l: rich text header url (title url)
-    a: avatar icon url
-    u: username to post as
+    c: colour of rich message (as ascii integer or: good|warning|danger) (optional)
+    H: rich text header (title) (optional)
+    l: rich text header url link (optional)
+    a: avatar icon url (optional)
+    u: username to post as (optional)
     h: help
 notes:
-    TO COME
+    Guild code and webhook token can be extracted from the webhook url:
+        https://discordapp.com/api/webhooks/{{ guild code }}/{{ token }}
+    One or both of '-t' and '-r' are required, all else optional
+    Webhook token and guild code can be omitted and set in environment instead:
+        export DISCORD_GUILD=...
+        export DISCORD_TOKEN=...
+    You can mention users/roles in messages using their id codes:
+        Enter '\@Something' in discord chat to get their id code
+        Then use in messages as '<@1234567890>'
+    '-c' takes either an ascii rgb integer or defined words
+        Ascii rgb integers are weird. blame discord for not using hex strings
+        Use this to convert: https://www.shodor.org/stella2java/rgbint.html
 examples:
-    ./postdiscord -t \"boop\" -r \"beep\" -c \"good\" -H \"test script\" -u \"Feldb0t\"
-    ./postdiscord -t \"boop\" -u \"AppleBot\"
+    ./postdiscord -t 'boop' -r 'I'm a rich embed!' -c 'good' -H 'test script' -u 'Feldb0t'
+    ./postdiscord -t 'boop' -r 'I'm a rich embed with a custom colour!' -c '16738740' -H 'test script'
+    ./postdiscord -t 'I'm a plain message' -u 'AppleBot'
+    ./postdiscord -t 'Hi <@1234567890>' -r 'boop' -c 'warning' -H 'Mention example' -u 'Sweetie Bot'
 "
 
 ## Check if null arguments
@@ -62,6 +76,7 @@ done
 if [ ${COLOUR} = "good" ]; then COLOUR="65280"; fi
 if [ ${COLOUR} = "warning" ]; then COLOUR="255"; fi
 if [ ${COLOUR} = "danger" ]; then COLOUR="16711680"; fi
+if [ ${COLOUR} = "pinkie" ]; then COLOUR="16738740"; fi
 
 ## post url
 POST_URL=${URL_BASE}/${GUILD}/${TOKEN}
