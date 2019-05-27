@@ -9,6 +9,7 @@
 HELP="
 arguments:
     T: API token
+    W: Webhook token
     C: channel
     t: text to post
     p: parse (none|full)
@@ -56,13 +57,11 @@ fi
 TOKEN=$SLACK_TOKEN
 CHANNEL=$SLACK_CHANNEL
 
-## Script specific defaults (different than Slack defautls)
-AS_USER="true"
-
 ## Setup vars from arguments
-while getopts 'T:C:t:p:l:rc:P:H:L:a:A:w:u:U:f:F:i:Ih' opt; do
+while getopts 'T:W:C:t:p:l:rc:P:H:L:a:A:w:u:U:f:F:i:Ih' opt; do
     case $opt in
         T)  TOKEN="$OPTARG"         ;;
+        W)  WEBTOKEN="$OPTARG"      ;;
         C)  CHANNEL="$OPTARG"       ;;
         t)  TEXT="$OPTARG"          ;;
         p)  PARSE="$OPTARG"         ;;
@@ -88,11 +87,22 @@ while getopts 'T:C:t:p:l:rc:P:H:L:a:A:w:u:U:f:F:i:Ih' opt; do
     esac
 done
 
+## Script specific defaults (different than Slack defautls)
+if [ -z ${AS_USER+x} ]; then
+    if [ -z ${WEBTOKEN+x} ]; then
+        AS_USER="true"
+    fi
+fi
+
 ## Rich attachment post
 if [[ -n ${RICH} ]]; then
     ## Build rich post command
     # add "--trace-ascii curl.trace" for trace functionality e.g.
-    RICH_POST_CMD="-F token=${TOKEN} --form-string channel=${CHANNEL} -F pretty=1"
+    if [ -z ${WEBTOKEN+x} ]; then
+        RICH_POST_CMD="-F token=${TOKEN} --form-string channel=${CHANNEL} -F pretty=1"
+    else
+        RICH_POST_CMD=""
+    fi
     
     ## Standard parameters
     if [[ -n ${PARSE} ]]; then RICH_POST_CMD=" -F parse=\"${PARSE}\" $RICH_POST_CMD"; fi
@@ -119,28 +129,45 @@ if [[ -n ${RICH} ]]; then
     else ATTACHMENT_CODE="$ATTACHMENT_CODE\\\"fallback\\\":\\\" \\\""; fi
 
     ATTACHMENT_CODE="$ATTACHMENT_CODE}]"
-    RICH_POST_CMD=" -F attachments=\"${ATTACHMENT_CODE}\" $RICH_POST_CMD"
-
+    
     ## Send rich attachment post
-    eval curl ${RICH_POST_CMD} https://slack.com/api/chat.postMessage
+    if [ -z ${WEBTOKEN+x} ]; then
+        RICH_POST_CMD=" -F attachments=\"${ATTACHMENT_CODE}\" $RICH_POST_CMD"
+        eval curl ${RICH_POST_CMD} https://slack.com/api/chat.postMessage
+    else
+        RICH_POST_CMD=" -X POST -H 'Content-type: application/json' --data '{\"attachments\":${ATTACHMENT_CODE}}'" $RICH_POST_CMD
+        echo ${RICH_POST_CMD//\\/}
+        eval curl ${RICH_POST_CMD//\\/} ${WEBTOKEN}
+    fi    
 
 ## Normal post
 else
     ## Build normal post command
     # add "--trace-ascii curl.trace" for trace functionality e.g.
-    POST_MSG_CMD="-F token=${TOKEN} --form-string channel=${CHANNEL} -F text=\"${TEXT}\" -F pretty=1"
+    if [ -z ${WEBTOKEN+x} ]; then
+        POST_MSG_CMD="-F token=${TOKEN} --form-string channel=${CHANNEL} -F text=\"${TEXT}\" -F pretty=1"
+    else
+        POST_MSG_CMD=" -X POST -H 'Content-type: application/json' --data '{\"text\":\"${TEXT}\"}'"
+    fi    
 
-    ## Standard parameters
-    if [[ -n ${PARSE} ]]; then POST_MSG_CMD=" -F parse=\"${PARSE}\" $POST_MSG_CMD"; fi
-    if [[ -n ${LINK_NAMES} ]]; then POST_MSG_CMD=" -F link_names=\"${LINK_NAMES}\" $POST_MSG_CMD"; fi
-    if [[ -n ${USERNAME} ]]; then POST_MSG_CMD=" -F username=\"${USERNAME}\" $POST_MSG_CMD"; fi
-    if [[ -n ${AS_USER} ]]; then POST_MSG_CMD=" -F as_user=\"${AS_USER}\" $POST_MSG_CMD"; fi
-    if [[ -n ${UNFURL_LINKS} ]]; then POST_MSG_CMD=" -F unfurl_links=\"${UNFURL_LINKS}\" $POST_MSG_CMD"; fi
-    if [[ -n ${UNFURL_MEDIA} ]]; then POST_MSG_CMD=" -F unfurl_media=\"${UNFURL_MEDIA}\" $POST_MSG_CMD"; fi
-    if [[ -n ${ICON_URL} ]]; then POST_MSG_CMD=" -F icon_url=\"${ICON_URL}\" $POST_MSG_CMD"; fi
-    if [[ -n ${ICON_EMOJI} ]]; then RICPOST_MSG_CMDH_POST_CMD=" -F icon_emoji=\"${ICON_EMOJI}\" $POST_MSG_CMD"; fi
+    if [ -z ${WEBTOKEN+x} ]; then
+        ## Standard parameters
+        if [[ -n ${PARSE} ]]; then POST_MSG_CMD=" -F parse=\"${PARSE}\" $POST_MSG_CMD"; fi
+        if [[ -n ${LINK_NAMES} ]]; then POST_MSG_CMD=" -F link_names=\"${LINK_NAMES}\" $POST_MSG_CMD"; fi
+        if [[ -n ${USERNAME} ]]; then POST_MSG_CMD=" -F username=\"${USERNAME}\" $POST_MSG_CMD"; fi
+        if [[ -n ${AS_USER} ]]; then POST_MSG_CMD=" -F as_user=\"${AS_USER}\" $POST_MSG_CMD"; fi
+        if [[ -n ${UNFURL_LINKS} ]]; then POST_MSG_CMD=" -F unfurl_links=\"${UNFURL_LINKS}\" $POST_MSG_CMD"; fi
+        if [[ -n ${UNFURL_MEDIA} ]]; then POST_MSG_CMD=" -F unfurl_media=\"${UNFURL_MEDIA}\" $POST_MSG_CMD"; fi
+        if [[ -n ${ICON_URL} ]]; then POST_MSG_CMD=" -F icon_url=\"${ICON_URL}\" $POST_MSG_CMD"; fi
+        if [[ -n ${ICON_EMOJI} ]]; then POST_MSG_CMD=" -F icon_emoji=\"${ICON_EMOJI}\" $POST_MSG_CMD"; fi
+    fi
+
 
     ## Send rich attachment post
-    eval curl ${POST_MSG_CMD} https://slack.com/api/chat.postMessage
-
+    if [ -z ${WEBTOKEN+x} ]; then
+        eval curl ${POST_MSG_CMD} https://slack.com/api/chat.postMessage
+    else
+        echo ${POST_MSG_CMD}
+        eval curl ${POST_MSG_CMD} ${WEBTOKEN}
+    fi
 fi
